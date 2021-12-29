@@ -11,7 +11,7 @@ import scala.concurrent.duration.FiniteDuration
 
 
 object Main {
-  val csvPath = "log.csv"
+  val csvPathDefault = "log.csv"
   val logger = Logger("web3-portfolio")
   // UTC Time.
   val rebaseTimes = Seq(6, 14, 22).map(LocalTime.of(_, 0))
@@ -20,18 +20,18 @@ object Main {
 
   // Command Line arg configuration.
   case class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
-    val walletAddress = opt[String](required = true)
-    val csv = opt[String](default = Some(csvPath))
-    val runAtStart = opt[Boolean](default = Some(true))
+    val walletAddress = opt[String](required = true, name = "walletAddress", descr = "Wallet address on AVAX C-Chain")
+    val csvPath = opt[String](default = Some(csvPathDefault), descr = "Path to csv file for logs")
+    val noRunAtStart = opt[Boolean](name = "noRunAtStart", descr = "Flag to only run after rebases")
     verify()
   }
 
   def main(args: Array[String]): Unit = {
     val input = Conf(args)
-    startLogScheduler(input.walletAddress(), input.csv(), input.runAtStart())
+    startLogScheduler(input.walletAddress(), input.csvPath(), input.noRunAtStart())
   }
 
-  def startLogScheduler(walletAddress: String, csvPath: String, runAtStart: Boolean): Unit = {
+  def startLogScheduler(walletAddress: String, csvPath: String, noRunAtStart: Boolean): Unit = {
     implicit val scheduler = Scheduler.forkJoin(
       name = "web3-logger",
       parallelism = 1,
@@ -40,10 +40,10 @@ object Main {
     )
 
     // Bug in scheduler? non-zero initial delay will cause early exit.
-    if (runAtStart)
-      scheduler.scheduleOnce(0, TimeUnit.SECONDS, executeLogging(walletAddress, csvPath))
-    else
+    if (noRunAtStart)
       scheduler.scheduleOnce(0, TimeUnit.SECONDS, () => ())
+    else
+      scheduler.scheduleOnce(0, TimeUnit.SECONDS, executeLogging(walletAddress, csvPath))
 
     val timeTillFirstExecution = findTimeUntilFirstRebase().toMillis
     logger.info(s"Beginning Scheduler configuration. Time until next log: $timeTillFirstExecution")
