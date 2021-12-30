@@ -18,13 +18,15 @@ object Web3 {
   // Type alias to resolve name conflict with Scala standard library.
   type Web3Function = _root_.org.web3j.abi.datatypes.Function
   val AVALANCHE_C_CHAIN = "https://api.avax.network/ext/bc/C/rpc"
+  val ETHEREUM_CHAIN = "https://mainnet.infura.io/v3/5fe4e62a874540818356146a14d478b9"
 
   object Contracts {
     val WMEMO = "0x0da67235dd5787d67955420c84ca1cecd4e5bb3b"
     val MEMO = "0x136acd46c134e8269052c62a67042d6bdedde3c9"
   }
 
-  val web3 = Web3j.build(new HttpService(AVALANCHE_C_CHAIN))
+  val avaxWeb3 = Web3j.build(new HttpService(AVALANCHE_C_CHAIN))
+  val ethWeb3 = Web3j.build(new HttpService(ETHEREUM_CHAIN))
   val defaultBlockParameter = DefaultBlockParameter.valueOf("latest")
 
   /**
@@ -40,7 +42,10 @@ object Web3 {
     Convert.fromWei(converted, Convert.Unit.GWEI)
   }
 
-  def getAVAXBalance(walletAddress: String): BigDecimal = {
+  def getAVAXBalance(walletAddress: String): BigDecimal = getMainBalance(avaxWeb3, walletAddress)
+  def getETHBalance(walletAddress: String): BigDecimal = getMainBalance(ethWeb3, walletAddress)
+
+  def getMainBalance(web3: Web3j, walletAddress: String): BigDecimal = {
     val wei: BigInteger = web3.ethGetBalance(walletAddress, defaultBlockParameter).send().getBalance
     Convert.fromWei(wei.toString, Convert.Unit.ETHER)
   }
@@ -51,8 +56,8 @@ object Web3 {
       java.util.Arrays.asList(new TypeReference[Uint256]() {}));
     val encoded = FunctionEncoder.encode(function)
     val transaction = Transaction.createEthCallTransaction(walletAddress, contractAddress, encoded)
-    val response = web3.ethCall(transaction, defaultBlockParameter).send().getValue()
-    val asWei = FunctionReturnDecoder.decode(response, function.getOutputParameters).get(0).getValue()
+    val response = avaxWeb3.ethCall(transaction, defaultBlockParameter).send().getValue()
+    val asWei = FunctionReturnDecoder.decode(response, function.getOutputParameters).get(0).getValue
     Convert.toWei(asWei.toString, Convert.Unit.WEI) // Wei -> Wei for type safety.
   }
 
@@ -62,8 +67,8 @@ object Web3 {
       java.util.Arrays.asList(new TypeReference[Uint256]() {}));
     val encoded = FunctionEncoder.encode(function)
     val transaction = Transaction.createEthCallTransaction(walletAddress, Contracts.WMEMO, encoded)
-    val response = web3.ethCall(transaction, defaultBlockParameter).send().getValue()
-    val asWei = FunctionReturnDecoder.decode(response, function.getOutputParameters).get(0).getValue()
+    val response = avaxWeb3.ethCall(transaction, defaultBlockParameter).send().getValue()
+    val asWei = FunctionReturnDecoder.decode(response, function.getOutputParameters).get(0).getValue
     Convert.toWei(asWei.toString, Convert.Unit.WEI) // Wei -> Wei for type safety.
   }
 }

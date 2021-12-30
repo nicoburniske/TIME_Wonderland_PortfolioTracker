@@ -11,27 +11,23 @@ import scala.concurrent.duration.FiniteDuration
 
 
 object Main {
+  val logger = Logger("web3-porfolio")
   val csvPathDefault = "log.csv"
-  val logger = Logger("web3-portfolio")
-  // UTC Time.
-  val rebaseTimes = Seq(6, 14, 22).map(LocalTime.of(_, 0))
-  val UTC = ZoneId.of("UTC")
-
 
   // Command Line arg configuration.
   case class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
     val walletAddress = opt[String](required = true, name = "walletAddress", descr = "Wallet address on AVAX C-Chain")
-    val csvPath = opt[String](default = Some(csvPathDefault), descr = "Path to csv file for logs")
-    val noRunAtStart = opt[Boolean](name = "noRunAtStart", descr = "Flag to only run after rebases")
+    val csvPath = opt[String](default = Some(csvPathDefault), name = "csvPath", descr = s"Path to csv file for logs. Default is $csvPathDefault in working directory")
+    val runAtStart = opt[Boolean](name = "runAtStart", descr = "Will execute first log immediately")
     verify()
   }
 
   def main(args: Array[String]): Unit = {
     val input = Conf(args)
-    startLogScheduler(input.walletAddress(), input.csvPath(), input.noRunAtStart())
+    startLogScheduler(input.walletAddress(), input.csvPath(), input.runAtStart())
   }
 
-  def startLogScheduler(walletAddress: String, csvPath: String, noRunAtStart: Boolean): Unit = {
+  def startLogScheduler(walletAddress: String, csvPath: String, runAtStart: Boolean): Unit = {
     implicit val scheduler = Scheduler.forkJoin(
       name = "web3-logger",
       parallelism = 1,
@@ -39,17 +35,18 @@ object Main {
       daemonic = false
     )
 
-    // Bug in scheduler? non-zero initial delay will cause early exit.
-    if (noRunAtStart)
-      scheduler.scheduleOnce(0, TimeUnit.SECONDS, () => ())
-    else
-      scheduler.scheduleOnce(0, TimeUnit.SECONDS, executeLogging(walletAddress, csvPath))
-
-    val timeTillFirstExecution = findTimeUntilFirstRebase().toMillis
-    logger.info(s"Beginning Scheduler configuration. Time until next log: $timeTillFirstExecution")
-    val eightHours = FiniteDuration(8, TimeUnit.HOURS).toMillis
-    scheduler.scheduleWithFixedDelay(timeTillFirstExecution, eightHours, TimeUnit.MILLISECONDS, executeLogging(walletAddress, csvPath))
+    val timeTillFirstExecution = findTimeUntilFirstRebase()
+    val hours = BigDecimal(timeTillFirstExecution.toMinutes / 60.0).setScale(2, BigDecimal.RoundingMode.HALF_UP).toDouble
+    val eightHours = FiniteDuration(8, TimeUnit.HOURS)
+    logger.info(s"Beginning Scheduler configuration. $hours hours until next rebase log")
+    scheduler.scheduleWithFixedDelay(timeTillFirstExecution.toSeconds, eightHours.toSeconds, TimeUnit.SECONDS, executeLogging(walletAddress, csvPath))
     logger.info("Scheduler was configured properly")
+
+    // Bug in scheduler? non-zero initial delay will cause early exit.
+    if (runAtStart)
+      scheduler.scheduleOnce(0, TimeUnit.SECONDS, executeLogging(walletAddress, csvPath))
+    else
+      scheduler.scheduleOnce(0, TimeUnit.SECONDS, () => ())
   }
 
   def executeLogging(walletAddress: String, csvPath: String): Runnable = () => {
@@ -61,8 +58,11 @@ object Main {
     }
   }
 
+  val UTC = ZoneId.of("UTC")
+  val REBASE_TIMES = Seq(6, 14, 22).map(LocalTime.of(_, 0))
+
   /**
-   * Finds first rebase time. Rebases happen @ 01:00, 09:00, 17:00 EST.
+   * Finds first rebase time. Rebases happen @ 06:00, 14:00, 22:00 UTC.
    *
    * @return duration until next rebase time + 1 min for contract to execute.
    */
@@ -70,10 +70,10 @@ object Main {
     def findFirstRebaseTime(): Long = {
       val now = LocalDateTime.now(UTC)
       val nowDate = now.toLocalDate
-      val todayTimes = rebaseTimes.map { time =>
+      val todayTimes = REBASE_TIMES.map { time =>
         LocalDateTime.of(nowDate, time)
       }
-      val tomorrowTimes = rebaseTimes.map { time =>
+      val tomorrowTimes = REBASE_TIMES.map { time =>
         LocalDateTime.of(nowDate.plusDays(1), time)
       }
       (todayTimes ++ tomorrowTimes)

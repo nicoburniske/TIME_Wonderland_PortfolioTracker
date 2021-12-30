@@ -1,13 +1,12 @@
 package nicoburniske.web3
 
+import io.circe.parser._
+import scalaj.http._
+
 /**
  * Interacts with CoinGecko API to retrieve market prices.
  */
 object PriceService {
-
-  import io.circe.parser._
-  import scalaj.http._
-
   val WONDERLAND = "wonderland"
   val ETHEREUM = "ethereum"
   val defaultIDs = Seq(WONDERLAND, ETHEREUM)
