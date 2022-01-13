@@ -1,12 +1,14 @@
 package nicoburniske.web3
 
 import java.io.File
+import java.text.SimpleDateFormat
 import java.util.Calendar
 
 import com.github.tototoshi.csv.CSVWriter
 
 object CsvLogger {
   val CSV_HEADERS = Seq("Log Time", "TIME Balance", "TIME Price", "TIME USD Value", "ETH Price")
+  val formatter   = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
   /**
    * Adds log to CSV File.
@@ -17,12 +19,12 @@ object CsvLogger {
    * @param timePrice   current TIME Price
    */
   def addLog(csvPath: String, timeBalance: BigDecimal, timePrice: Double, ethPrice: Double): Unit = {
-    val file = new File(csvPath)
+    val file         = new File(csvPath)
     if (!file.exists()) {
       setupCSV(file)
     }
-    val csvWriter = CSVWriter.open(file, append = true)
-    val time = Calendar.getInstance().getTime.toString
+    val csvWriter    = CSVWriter.open(file, append = true)
+    val time         = formatter.format(Calendar.getInstance().getTime)
     val balanceValue = (timeBalance * timePrice).setScale(2, BigDecimal.RoundingMode.HALF_UP)
     csvWriter.writeRow(Seq(time, timeBalance.toString, timePrice, balanceValue.toString, ethPrice))
     csvWriter.close
