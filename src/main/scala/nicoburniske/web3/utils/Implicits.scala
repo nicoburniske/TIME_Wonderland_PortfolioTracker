@@ -9,7 +9,9 @@ import scala.util.Try
 object Implicits {
   implicit val bigIntDecoder: ScalarDecoder[BigInt] = {
     case __NumberValue(value) =>
-      Try(value.toBigIntExact).toEither.left
+      Try(value.toBigIntExact)
+        .toEither
+        .left
         .map(ex => DecodingError(s"Can't build a BigInt from input $value", Some(ex)))
         .flatMap {
           case None => Left(DecodingError(s"Can't build a BigInt from input $value"))

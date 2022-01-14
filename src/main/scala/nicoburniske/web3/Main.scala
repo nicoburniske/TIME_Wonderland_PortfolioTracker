@@ -61,9 +61,10 @@ object Main extends BetterLogger {
     val querySushi  =
       Queries.pairSwapsSinceInstant(PairAddress.SUSHI_WMEMO_MIM, startTime, minSwap)(query).toRequest(Endpoints.SUSHISWAP)
     for {
-      backend            <- backendTask
+      backend <- backendTask
       //  _                  <- Task.eval(logger.info(queryTj.toCurl))
-      responses          <- Task.parZip2(queryTj.send(backend), querySushi.send(backend))
+      responses <- Task.parZip2(queryTj.send(backend), querySushi.send(backend))
+
       (timeReq, wmemoReq) = responses
     } yield {
       (timeReq.body, wmemoReq.body) match {
