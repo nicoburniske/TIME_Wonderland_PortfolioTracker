@@ -1,4 +1,4 @@
-package nicoburniske.web3
+package nicoburniske.web3.eth
 
 import java.math.BigInteger
 
@@ -16,9 +16,9 @@ import org.web3j.tx.gas.DefaultGasProvider
 import org.web3j.utils.Convert
 
 /**
- * Queries Web3 RPC API for AVAX C-Chain.
+ * Queries Web3 JSON-RPC API for Ethereum & AVAX C-Chain.
  */
-object Web3 {
+object JsonRPC {
   // Type alias to resolve name conflict with Scala standard library.
   type Web3Function = _root_.org.web3j.abi.datatypes.Function
 
@@ -49,17 +49,17 @@ object Web3 {
    * @return
    *   Human-readable format of TIME Balance.
    */
-  def getWalletTimeBalance(walletAddress: String): Task[BigDecimal] = {
-    val nonWrappedTask = Task(memoContract.balanceOf(walletAddress).send())
-    val wrappedTask    = Task(wMemoContract.balanceOf(walletAddress).send())
+  def getWalletTimeBalance(walletAddress: String): Task[Either[String, BigDecimal]] = {
     val oneAsWei       = Convert.toWei("1", Convert.Unit.ETHER)
-    val conversionTask = Task(wMemoContract.wMEMOToMEMO(oneAsWei.toBigInteger).send())
+    val nonWrappedTask = Task.from(memoContract.balanceOf(walletAddress).sendAsync())
+    val wrappedTask    = Task.from(wMemoContract.balanceOf(walletAddress).sendAsync())
+    val conversionTask = Task.from(wMemoContract.wMEMOToMEMO(oneAsWei.toBigInteger).sendAsync())
     Task.parZip3(nonWrappedTask, wrappedTask, conversionTask).map {
       case (nonWrapped, wrapped, conversion) =>
         val wrapped2    = Convert.fromWei(new java.math.BigDecimal(wrapped), Convert.Unit.ETHER)
         val conversion2 = Convert.fromWei(new java.math.BigDecimal(conversion), Convert.Unit.GWEI)
         val nonWrapped2 = Convert.fromWei(new java.math.BigDecimal(nonWrapped), Convert.Unit.GWEI)
-        wrapped2.multiply(conversion2).add(nonWrapped2)
+        Right(wrapped2.multiply(conversion2).add(nonWrapped2))
     }
   }
 

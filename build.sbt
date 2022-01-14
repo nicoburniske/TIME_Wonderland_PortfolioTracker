@@ -21,28 +21,29 @@ val dependencies = Seq(
   "ch.qos.logback"                 % "logback-classic"                 % "1.2.3",
   "com.github.ghostdogpr"         %% "caliban-client"                  % "1.3.2",
   "com.softwaremill.sttp.client3" %% "core"                            % sttpVersion,
-  "com.softwaremill.sttp.client3" %% "async-http-client-backend-monix" % sttpVersion
+  "com.softwaremill.sttp.client3" %% "async-http-client-backend-monix" % sttpVersion,
+  "com.bot4s"                     %% "telegram-core"                   % "5.3.0"
 ) ++ Seq(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
   "io.circe" %% "circe-parser"
 ).map(_                            % circeVersion)
 
-lazy val app = (project in file("."))
-  .settings(
-    libraryDependencies ++= dependencies,
-    Compile / run / mainClass        := Some(classMain),
-    Compile / packageBin / mainClass := Some(classMain),
-    assembly / mainClass             := Some(classMain),
-    assembly / assemblyJarName       := "web3-logger.jar",
-    assembly / logLevel              := util.Level.Info,
-    Compile / caliban / calibanSettings += calibanSetting(file("SushiExchangeSchema.graphql"))(cs =>
-      cs.splitFiles(true)
-        .packageName("generated.sushi.exchange")
-        .genView(true)
-        .imports("nicoburniske.web3.utils.Implicits._")
-        .scalarMapping("Bytes" -> "String"))
-  )
+lazy val app = (project in file(".")).settings(
+  libraryDependencies ++= dependencies,
+  Compile / run / mainClass        := Some(classMain),
+  Compile / run / logLevel         := util.Level.Debug,
+  Compile / packageBin / mainClass := Some(classMain),
+  assembly / logLevel              := util.Level.Info,
+  assembly / mainClass             := Some(classMain),
+  assembly / assemblyJarName       := "web3-logger.jar",
+  Compile / caliban / calibanSettings += calibanSetting(file("SushiExchangeSchema.graphql"))(cs =>
+    cs.splitFiles(true)
+      .packageName("generated.sushi.exchange")
+      .genView(true)
+      .imports("nicoburniske.web3.utils.Implicits._")
+      .scalarMapping("Bytes" -> "String"))
+)
 
 assembly / assemblyMergeStrategy := {
   case PathList("META-INF", _*) => MergeStrategy.discard
