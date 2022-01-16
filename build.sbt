@@ -12,17 +12,18 @@ resolvers += Resolver.sonatypeRepo("releases")
 enablePlugins(CalibanPlugin)
 
 val dependencies = Seq(
-  "org.web3j"                      % "core"                            % web3jVersion,
-  "org.scalaj"                    %% "scalaj-http"                     % "2.4.2",
-  "com.github.tototoshi"          %% "scala-csv"                       % "1.3.10",
-  "io.monix"                      %% "monix"                           % "3.4.0",
-  "org.rogach"                    %% "scallop"                         % "4.1.0",
-  "com.typesafe.scala-logging"    %% "scala-logging"                   % "3.9.4",
-  "ch.qos.logback"                 % "logback-classic"                 % "1.2.3",
-  "com.github.ghostdogpr"         %% "caliban-client"                  % "1.3.2",
-  "com.softwaremill.sttp.client3" %% "core"                            % sttpVersion,
+  "org.web3j" % "core" % web3jVersion,
+  "org.scalaj" %% "scalaj-http" % "2.4.2",
+  "com.github.tototoshi" %% "scala-csv" % "1.3.10",
+  "io.monix" %% "monix" % "3.4.0",
+  "org.rogach" %% "scallop" % "4.1.0",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
+  "ch.qos.logback" % "logback-classic" % "1.2.3",
+  "com.github.ghostdogpr" %% "caliban-client" % "1.3.2",
+  "com.softwaremill.sttp.client3" %% "core" % sttpVersion,
   "com.softwaremill.sttp.client3" %% "async-http-client-backend-monix" % sttpVersion,
-  "com.bot4s"                     %% "telegram-core"                   % "5.3.0"
+  "com.bot4s" %% "telegram-core" % "5.3.0",
+  "com.github.pureconfig" %% "pureconfig" % "0.17.1"
 ) ++ Seq(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",

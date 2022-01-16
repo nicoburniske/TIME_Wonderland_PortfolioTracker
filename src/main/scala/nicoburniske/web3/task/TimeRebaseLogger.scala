@@ -12,30 +12,35 @@ import nicoburniske.web3.utils.BetterLogger
 import scala.concurrent.duration.{FiniteDuration, _}
 
 object TimeRebaseLogger extends BetterLogger {
-  def startLogScheduler(walletAddress: String, csvPath: String, runAtStart: Boolean): Unit = {
-    scheduleRebaseLogEvent(walletAddress, csvPath)
-    if (runAtStart)
-      scheduler.scheduleOnce(0.seconds)(loggingTask(walletAddress, csvPath).runAsyncAndForget)
-    else
-      scheduler.scheduleOnce(0.seconds)(() => ())
+  def schedule(walletAddress: String, csvPath: String, runAtStart: Boolean): Task[Unit] = {
+    for {
+      _ <- scheduleRebaseLogEvent(walletAddress, csvPath)
+    } yield {
+      if (runAtStart)
+        scheduler.scheduleOnce(0.seconds)(loggingTask(walletAddress, csvPath).runAsyncAndForget)
+      else
+        scheduler.scheduleOnce(0.seconds)(() => ())
+    }
   }
 
-  def scheduleRebaseLogEvent(walletAddress: String, csvPath: String): Unit = {
-    val rebaseTime = findTimeUntilNextRebase()
-    val hours      = BigDecimal(rebaseTime.toMinutes / 60.0).setScale(2, BigDecimal.RoundingMode.HALF_UP)
-    logger.info(s"Beginning Scheduler configuration. $hours hours until next rebase log")
-    scheduler.scheduleAtFixedRate(rebaseTime, 8.hours)(loggingTask(walletAddress, csvPath).runAsyncAndForget)
-    logger.info("Scheduler was configured properly")
+  def scheduleRebaseLogEvent(walletAddress: String, csvPath: String): Task[Unit] = {
+    Task.eval {
+      val rebaseTime = findTimeUntilNextRebase()
+      val hours = BigDecimal(rebaseTime.toMinutes / 60.0).setScale(2, BigDecimal.RoundingMode.HALF_UP)
+      logger.info(s"Scheduling rebase logger. $hours hours until next rebase log")
+      scheduler.scheduleAtFixedRate(rebaseTime, 8.hours)(loggingTask(walletAddress, csvPath).runAsyncAndForget)
+      logger.info("Successfully scheduled rebase logger")
+    }
   }
 
   def loggingTask(walletAddress: String, csvPath: String): Task[Unit] = {
     for {
-      backend   <- backendTask
+      backend <- backendTask
       responses <- Task.parZip4(
-                     CEX.getPrices().send(backend),
-                     DEX.priceWMEMO().send(backend),
-                     DEX.priceTIME().send(backend),
-                     JsonRPC.getWalletTimeBalance(walletAddress))
+        CEX.getPrices().send(backend),
+        DEX.priceWMEMO().send(backend),
+        DEX.priceTIME().send(backend),
+        JsonRPC.getWalletTimeBalance(walletAddress))
 
       (prices, wMemo, time, balance) = responses
     } yield (prices.body, wMemo.body, time.body, balance) match {
