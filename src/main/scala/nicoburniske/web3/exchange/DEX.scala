@@ -46,7 +46,7 @@ object DEX {
       val filterArg = Argument("where", Seq("timestamp_gte" -> instantToSec, "amountUSD_gte" -> minTradeAmount), "")
       val orderByArg = Argument("orderBy", "timestamp", "")
       val sortDirection = Argument("orderDirection", "desc", "")
-      val swapsField    = Field[Pair, List[A]](
+      val swapsField = Field[Pair, List[A]](
         "swaps",
         ListOf(Obj(swapSelection)),
         arguments = List(filterArg, orderByArg, sortDirection)
@@ -68,27 +68,4 @@ object DEX {
   private def round(res: Option[(String, BigDecimal)]): Option[(String, BigDecimal)] = {
     res.map { case (label, price) => (label, price.setScale(3, RoundingMode.HALF_UP)) }
   }
-
-  def main(args: Array[String]): Unit = {
-//    val query3 = Queries.pairSwapsSinceInstant(PairAddress.TJ_TIME_MIM, Instant.now().minusSeconds(60))(
-//      Swap.id ~ Swap.timestamp ~ Swap.amountUSD
-//    )
-//    val uri    = Endpoints.TRADER_JOE
-//
-//    val request = query3.toRequest(uri)
-//    println(request.toCurl)
-//
-//    val backend = HttpURLConnectionBackend()
-//    val value1  = request.send(backend)
-//    // println(value1.toString())
-//    value1.body match {
-//      case Right(s)                        =>
-//        println(s.size)
-//        println(s.mkString("\n"))
-////        println(s.head)
-////        println(s.last)
-//      case Left(value: CalibanClientError) => println(value.getMessage())
-//    }
-  }
-
 }

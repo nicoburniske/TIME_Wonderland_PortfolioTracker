@@ -32,12 +32,12 @@ val dependencies = Seq(
 
 lazy val app = (project in file(".")).settings(
   libraryDependencies ++= dependencies,
-  Compile / run / mainClass        := Some(classMain),
-  Compile / run / logLevel         := util.Level.Debug,
+  Compile / run / mainClass := Some(classMain),
+  Compile / run / logLevel := util.Level.Debug,
   Compile / packageBin / mainClass := Some(classMain),
-  assembly / logLevel              := util.Level.Info,
-  assembly / mainClass             := Some(classMain),
-  assembly / assemblyJarName       := "web3-logger.jar",
+  assembly / logLevel := util.Level.Info,
+  assembly / mainClass := Some(classMain),
+  assembly / assemblyJarName := "web3.jar",
   Compile / caliban / calibanSettings += calibanSetting(file("SushiExchangeSchema.graphql"))(cs =>
     cs.splitFiles(true)
       .packageName("generated.sushi.exchange")

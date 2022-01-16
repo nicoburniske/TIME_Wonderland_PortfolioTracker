@@ -11,19 +11,20 @@ case class WhaleTrackerBot(override val token: String) extends TelegramNotificat
     for {
       chats <- getChats
       _ <- Task.now(logger.trace(s"Sending message to ${chats.size} chats"))
-      res <- request(SendMessage(chats.head, msg))
-    } yield res
+      _ <- Task.parTraverse(chats)(c => request(SendMessage(c, msg))).void
+    } yield ()
   }
 
   def getChats: Task[List[String]] = {
-    Task.eval(List("5012128436"))
+    Task.now(List("5012128436"))
   }
 
   override def receiveMessage(msg: Message): Task[Unit] =
-    msg.text.fold(Task.pure(())) {
+    msg.text.fold(Task.unit) {
       case "/start" =>
-        request(SendMessage(msg.source, s"dm me this chat id -> ${msg.source} so I can add you manually")).map(_ =>
-          logger.info(s"User added from chat ${msg.source.toString}"))
+        for {
+          _ <- request(SendMessage(msg.source, s"dm me this chat id -> ${msg.source} so I can add you manually"))
+        } yield logger.info(s"User added from chat ${msg.source.toString}")
       case _ =>
         Task.now(logger.info(s"Non-recognized command ${msg.text} from ${msg.source}"))
     }

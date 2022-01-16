@@ -7,7 +7,6 @@ import nicoburniske.web3.task.whaletracker.WhaleTracker
 import nicoburniske.web3.utils.BetterLogger
 import org.rogach.scallop.ScallopConf
 
-
 object Main extends BetterLogger {
   val CSVPATH = "log.csv"
 
@@ -23,7 +22,7 @@ object Main extends BetterLogger {
       name = "csvPath",
       descr = s"Path to csv file for logs. Default is $CSVPATH in working directory"
     )
-    val runAtStart    = opt[Boolean](
+    val runAtStart = opt[Boolean](
       name = "runAtStart",
       descr = "Will execute first log immediately"
     )
@@ -39,7 +38,7 @@ object Main extends BetterLogger {
   def composed(input: CommandLineConf, whaleApiKey: Option[String]): Task[Unit] = {
     for {
       _ <- TimeRebaseLogger.schedule(input.walletAddress(), input.csvPath(), input.runAtStart())
-      _ <- whaleApiKey.map(k => WhaleTracker.schedule(k)).getOrElse(Task.unit)
+      _ <- whaleApiKey.fold(Task.unit)(k => WhaleTracker.schedule(k))
     } yield ()
   }
 }

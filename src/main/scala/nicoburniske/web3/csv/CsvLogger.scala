@@ -1,22 +1,23 @@
 package nicoburniske.web3.csv
 
 import java.io.File
+import java.text.SimpleDateFormat
 import java.util.Calendar
 
 import com.github.tototoshi.csv.CSVWriter
-import nicoburniske.web3.utils.Utils.DATE_FORMAT
 
 // TODO: Use cats.effect.Resource for IO management.
 object CsvLogger {
   val CSV_HEADERS = Seq("Log Time", "TIME Balance")
+  val DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
   /**
    * Adds log to CSV File.
    *
    * @param csvPath
-   *   csv file path
+   * csv file path
    * @param timeBalance
-   *   current TIME wallet balance
+   * current TIME wallet balance
    */
   def addLog(csvPath: String, timeBalance: BigDecimal, prices: Seq[(String, Double)]): Unit = {
     val file      = new File(csvPath)

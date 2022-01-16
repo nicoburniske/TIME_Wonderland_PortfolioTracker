@@ -3,7 +3,7 @@ package nicoburniske.web3.task
 import java.time.{Instant, LocalDateTime, LocalTime, ZoneId}
 
 import monix.eval.Task
-import nicoburniske.web3.Resources.{backendTask, scheduler}
+import nicoburniske.web3.Resources.{backend, scheduler}
 import nicoburniske.web3.csv.CsvLogger
 import nicoburniske.web3.eth.JsonRPC
 import nicoburniske.web3.exchange.{CEX, DEX}
@@ -17,9 +17,9 @@ object TimeRebaseLogger extends BetterLogger {
       _ <- scheduleRebaseLogEvent(walletAddress, csvPath)
     } yield {
       if (runAtStart)
-        scheduler.scheduleOnce(0.seconds)(loggingTask(walletAddress, csvPath).runAsyncAndForget)
+        loggingTask(walletAddress, csvPath).runAsyncAndForget
       else
-        scheduler.scheduleOnce(0.seconds)(() => ())
+        ()
     }
   }
 
@@ -35,7 +35,6 @@ object TimeRebaseLogger extends BetterLogger {
 
   def loggingTask(walletAddress: String, csvPath: String): Task[Unit] = {
     for {
-      backend <- backendTask
       responses <- Task.parZip4(
         CEX.getPrices().send(backend),
         DEX.priceWMEMO().send(backend),

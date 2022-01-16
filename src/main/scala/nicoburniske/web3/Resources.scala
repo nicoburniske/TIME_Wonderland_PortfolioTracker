@@ -6,6 +6,9 @@ import pureconfig._
 import pureconfig.generic.auto._
 import sttp.client3.asynchttpclient.monix.AsyncHttpClientMonixBackend
 
+/**
+ * Contains application wide resources.
+ */
 object Resources {
   implicit val scheduler = Scheduler.forkJoin(
     name = "web3",
