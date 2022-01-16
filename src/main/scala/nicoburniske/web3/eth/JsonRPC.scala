@@ -63,16 +63,20 @@ object JsonRPC {
     val cauldronTask = Task.from(wMemoCauldronContract.userCollateralShare(walletAddress).sendAsync())
     val bentoboxTask = Task.from(bentoboxContract.balanceOf(Contracts.WMEMO_ADDRESS, walletAddress).sendAsync())
 
-    Task.parZip5(nonWrappedTask, wrappedTask, conversionTask, cauldronTask, bentoboxTask).map {
-      case (nonWrapped, wrapped, conversion, cauldron, bento) =>
-        // TODO: confirm bento balance should be added.
-        val allWrapped = wrapped.add(cauldron).add(bento)
-        val allWrapped2 = Convert.fromWei(new java.math.BigDecimal(allWrapped), Convert.Unit.ETHER)
-        val conversion2 = Convert.fromWei(new java.math.BigDecimal(conversion), Convert.Unit.GWEI)
-        val nonWrapped2 = Convert.fromWei(new java.math.BigDecimal(nonWrapped), Convert.Unit.GWEI)
+    for {
+      balances <- Task.parZip5(nonWrappedTask, wrappedTask, conversionTask, cauldronTask, bentoboxTask)
 
-        val total = allWrapped2.multiply(conversion2).add(nonWrapped2)
-        Right(total)
+      (nonWrapped, wrapped, conversion, cauldron, bento) = balances
+
+      bentoWrappedAmount <- Task.from(bentoboxContract.toAmount(Contracts.WMEMO_ADDRESS, cauldron.add(bento), false).sendAsync())
+    } yield {
+      val allWrapped = bentoWrappedAmount.add(wrapped)
+      val allWrapped2 = Convert.fromWei(new java.math.BigDecimal(allWrapped), Convert.Unit.ETHER)
+      val conversion2 = Convert.fromWei(new java.math.BigDecimal(conversion), Convert.Unit.GWEI)
+      val nonWrapped2 = Convert.fromWei(new java.math.BigDecimal(nonWrapped), Convert.Unit.GWEI)
+
+      val total = allWrapped2.multiply(conversion2).add(nonWrapped2)
+      Right(total)
     }
   }
 
