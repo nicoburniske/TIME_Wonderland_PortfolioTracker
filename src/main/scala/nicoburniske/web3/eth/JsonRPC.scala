@@ -3,7 +3,7 @@ package nicoburniske.web3.eth
 import java.math.BigInteger
 
 import monix.eval.Task
-import nicoburniske.web3.contracts.{MEMO, WMEMO}
+import nicoburniske.web3.contracts.{BentoboxV1, CauldronWMEMO, MEMO, WMEMO}
 import org.web3j.abi.datatypes.Address
 import org.web3j.abi.datatypes.generated.Uint256
 import org.web3j.abi.{FunctionEncoder, FunctionReturnDecoder, TypeReference}
@@ -27,39 +27,52 @@ object JsonRPC {
 
   object Contracts {
     val WMEMO_ADDRESS = "0x0da67235dd5787d67955420c84ca1cecd4e5bb3b"
-    val MEMO_ADDRESS  = "0x136acd46c134e8269052c62a67042d6bdedde3c9"
+    val MEMO_ADDRESS = "0x136acd46c134e8269052c62a67042d6bdedde3c9"
+    val BENTOBOX_ADDRESS = "0xf4F46382C2bE1603Dc817551Ff9A7b333Ed1D18f"
+    val WMEMO_CAULDRON_ADDRESS = "0x35fA7A723B3B39f15623Ff1Eb26D8701E7D6bB21"
   }
 
   val avaxWeb3 = Web3j.build(new HttpService(AVALANCHE_C_CHAIN))
-  val ethWeb3  = Web3j.build(new HttpService(ETHEREUM_CHAIN))
+  val ethWeb3 = Web3j.build(new HttpService(ETHEREUM_CHAIN))
 
-  val bunkAddress        = "0x" + (0 until 40).map(_ => 0).mkString
+  val bunkAddress = "0x" + (0 until 40).map(_ => 0).mkString
   val transactionManager = new ClientTransactionManager(avaxWeb3, bunkAddress)
-  val gasProvider        = new DefaultGasProvider()
-  val wMemoContract      = WMEMO.load(Contracts.WMEMO_ADDRESS, avaxWeb3, transactionManager, gasProvider)
-  val memoContract       = MEMO.load(Contracts.MEMO_ADDRESS, avaxWeb3, transactionManager, gasProvider)
+  val gasProvider = new DefaultGasProvider()
+  val wMemoContract = WMEMO.load(Contracts.WMEMO_ADDRESS, avaxWeb3, transactionManager, gasProvider)
+  val memoContract = MEMO.load(Contracts.MEMO_ADDRESS, avaxWeb3, transactionManager, gasProvider)
+  val bentoboxContract = BentoboxV1.load(Contracts.BENTOBOX_ADDRESS, avaxWeb3, transactionManager, gasProvider)
+  val wMemoCauldronContract = CauldronWMEMO.load(Contracts.WMEMO_CAULDRON_ADDRESS, avaxWeb3, transactionManager, gasProvider)
 
   val defaultBlockParameter = DefaultBlockParameter.valueOf("latest")
 
   /**
-   * Retrieves TIME Balance for the given wallet. Accounts for wrapped and non-wrapped wallet balance.
+   * Retrieves TIME Balance for the given wallet.
+   *
+   * Accounts for wrapped and non-wrapped wallet balance + wMEMO deposited into Abracadabra.money
    *
    * @param walletAddress
-   *   wallet with TIME Balance.
+   * wallet with TIME Balance.
    * @return
-   *   Human-readable format of TIME Balance.
+   * Human-readable format of TIME Balance.
    */
   def getWalletTimeBalance(walletAddress: String): Task[Either[String, BigDecimal]] = {
-    val oneAsWei       = Convert.toWei("1", Convert.Unit.ETHER)
+    val oneAsWei = Convert.toWei("1", Convert.Unit.ETHER)
     val nonWrappedTask = Task.from(memoContract.balanceOf(walletAddress).sendAsync())
-    val wrappedTask    = Task.from(wMemoContract.balanceOf(walletAddress).sendAsync())
+    val wrappedTask = Task.from(wMemoContract.balanceOf(walletAddress).sendAsync())
     val conversionTask = Task.from(wMemoContract.wMEMOToMEMO(oneAsWei.toBigInteger).sendAsync())
-    Task.parZip3(nonWrappedTask, wrappedTask, conversionTask).map {
-      case (nonWrapped, wrapped, conversion) =>
-        val wrapped2    = Convert.fromWei(new java.math.BigDecimal(wrapped), Convert.Unit.ETHER)
+    val cauldronTask = Task.from(wMemoCauldronContract.userCollateralShare(walletAddress).sendAsync())
+    val bentoboxTask = Task.from(bentoboxContract.balanceOf(Contracts.WMEMO_ADDRESS, walletAddress).sendAsync())
+
+    Task.parZip5(nonWrappedTask, wrappedTask, conversionTask, cauldronTask, bentoboxTask).map {
+      case (nonWrapped, wrapped, conversion, cauldron, bento) =>
+        // TODO: confirm bento balance should be added.
+        val allWrapped = wrapped.add(cauldron).add(bento)
+        val allWrapped2 = Convert.fromWei(new java.math.BigDecimal(allWrapped), Convert.Unit.ETHER)
         val conversion2 = Convert.fromWei(new java.math.BigDecimal(conversion), Convert.Unit.GWEI)
         val nonWrapped2 = Convert.fromWei(new java.math.BigDecimal(nonWrapped), Convert.Unit.GWEI)
-        Right(wrapped2.multiply(conversion2).add(nonWrapped2))
+
+        val total = allWrapped2.multiply(conversion2).add(nonWrapped2)
+        Right(total)
     }
   }
 
