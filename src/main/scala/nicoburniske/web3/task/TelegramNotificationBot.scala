@@ -1,4 +1,4 @@
-package nicoburniske.web3.task.whaletracker
+package nicoburniske.web3.task
 
 import com.bot4s.telegram.cats.TelegramBot
 import nicoburniske.web3.Resources

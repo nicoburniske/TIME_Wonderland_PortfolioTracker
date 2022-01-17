@@ -4,6 +4,7 @@ import com.bot4s.telegram.cats.Polling
 import com.bot4s.telegram.methods.SendMessage
 import com.bot4s.telegram.models.Message
 import monix.eval.Task
+import nicoburniske.web3.task.TelegramNotificationBot
 
 case class WhaleTrackerBot(override val token: String) extends TelegramNotificationBot(token) with Polling[Task] {
 
