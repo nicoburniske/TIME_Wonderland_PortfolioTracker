@@ -12,12 +12,12 @@ object OrderbookVolume {
 
   def findVolumeWMEMO(duration: FiniteDuration): Task[(BigDecimal, BigDecimal)] = {
     for {
-      since <- Task.eval(Instant.now().minusMillis(duration.toMillis))
+      since    <- Task.eval(Instant.now().minusMillis(duration.toMillis))
       response <- DEX.wMemoSwapsRequest(since, 0).send(backend)
-      result <- response.body match {
-        case Left(value) => Task.raiseError(value)
-        case Right(swaps) => Task.eval(calculateVolume(swaps))
-      }
+      result   <- response.body match {
+                    case Left(value)  => Task.raiseError(value)
+                    case Right(swaps) => Task.eval(calculateVolume(swaps))
+                  }
     } yield result
   }
 
@@ -25,9 +25,9 @@ object OrderbookVolume {
    * Calculates Sell and Buy volume for the given swaps.
    *
    * @param swaps
-   * the swaps
+   *   the swaps
    * @return
-   * (Sells, Buys)
+   *   (Sells, Buys)
    */
   def calculateVolume(swaps: Seq[SwapDetails]): (BigDecimal, BigDecimal) = {
     val grouped = swaps.groupMapReduce(_.token0Received > 0)(_.amountUSD)(_ + _)

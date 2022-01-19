@@ -17,12 +17,12 @@ object Main extends BetterLogger {
       name = "walletAddress",
       descr = "Wallet address on AVAX C-Chain"
     )
-    val csvPath = opt[String](
+    val csvPath       = opt[String](
       default = Some(CSVPATH),
       name = "csvPath",
       descr = s"Path to csv file for logs. Default is $CSVPATH in working directory"
     )
-    val runAtStart = opt[Boolean](
+    val runAtStart    = opt[Boolean](
       name = "runAtStart",
       descr = "Will execute first log immediately"
     )
@@ -31,7 +31,7 @@ object Main extends BetterLogger {
 
   def main(args: Array[String]): Unit = {
     val input = CommandLineConf(args)
-    val key = Resources.conf.toOption.map(_.whaleTrackerApiKey)
+    val key   = Resources.conf.toOption.map(_.whaleTrackerApiKey)
     composed(input, key).runAsyncAndForget
   }
 

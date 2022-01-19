@@ -42,11 +42,11 @@ object DEX {
 
     def pairSwapsSinceInstant[A](pairId: String, instant: Instant, minTradeAmount: BigInt = BigInt(0))(
         swapSelection: SelectionBuilder[Swap, A]): SelectionBuilder[RootQuery, Seq[A]] = {
-      val instantToSec = BigInt(instant.toEpochMilli.millis.toSeconds)
-      val filterArg = Argument("where", Seq("timestamp_gte" -> instantToSec, "amountUSD_gte" -> minTradeAmount), "")
-      val orderByArg = Argument("orderBy", "timestamp", "")
+      val instantToSec  = BigInt(instant.toEpochMilli.millis.toSeconds)
+      val filterArg     = Argument("where", Seq("timestamp_gte" -> instantToSec, "amountUSD_gte" -> minTradeAmount), "")
+      val orderByArg    = Argument("orderBy", "timestamp", "")
       val sortDirection = Argument("orderDirection", "desc", "")
-      val swapsField = Field[Pair, List[A]](
+      val swapsField    = Field[Pair, List[A]](
         "swaps",
         ListOf(Obj(swapSelection)),
         arguments = List(filterArg, orderByArg, sortDirection)

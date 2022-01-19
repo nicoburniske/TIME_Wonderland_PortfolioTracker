@@ -34,11 +34,11 @@ object TimeRebaseLogger extends BetterLogger {
 
   def loggingTask(walletAddress: String, csvPath: String): Task[Unit] = {
     for {
-      _ <- logTask("Log process starting")
-      responses <- Task.parZip2(getPrices, JsonRPC.getWalletTimeBalance(walletAddress))
+      _                <- logTask("Log process starting")
+      responses        <- Task.parZip2(getPrices, JsonRPC.getWalletTimeBalance(walletAddress))
       (prices, balance) = responses
-      _ <- Task.eval(CsvLogger.addLog(csvPath, balance, prices))
-      _ <- logTask("Log successfully written")
+      _                <- Task.eval(CsvLogger.addLog(csvPath, balance, prices))
+      _                <- logTask("Log successfully written")
     } yield ()
   }
 
@@ -49,13 +49,13 @@ object TimeRebaseLogger extends BetterLogger {
       (prices, wMemo, time) = responses
 
       res <- (prices.body, wMemo.body, time.body) match {
-        case (Right(prices), Right(Some((wmemoPool, priceWMemo))), Right(Some((timePool, priceTime)))) =>
-          Task.now(prices :+ (wmemoPool -> priceWMemo.toDouble) :+ (timePool -> priceTime.toDouble))
+               case (Right(prices), Right(Some((wmemoPool, priceWMemo))), Right(Some((timePool, priceTime)))) =>
+                 Task.now(prices :+ (wmemoPool -> priceWMemo.toDouble) :+ (timePool -> priceTime.toDouble))
 
-        case (p, w, t) =>
-          val msg = errorMessage("Failed to retrieve prices")(p, w, t)
-          Task.raiseError(new IllegalStateException(msg))
-      }
+               case (p, w, t) =>
+                 val msg = errorMessage("Failed to retrieve prices")(p, w, t)
+                 Task.raiseError(new IllegalStateException(msg))
+             }
     } yield res
   }
 

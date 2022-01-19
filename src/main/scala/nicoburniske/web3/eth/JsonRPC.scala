@@ -27,22 +27,22 @@ object JsonRPC {
 
   object Contracts {
     val WMEMO = "0x0da67235dd5787d67955420c84ca1cecd4e5bb3b"
-    val MEMO = "0x136acd46c134e8269052c62a67042d6bdedde3c9"
-    val MIM = "0x130966628846bfd36ff31a822705796e8cb8c18d"
+    val MEMO  = "0x136acd46c134e8269052c62a67042d6bdedde3c9"
+    val MIM   = "0x130966628846bfd36ff31a822705796e8cb8c18d"
 
-    val BENTOBOX = "0xf4F46382C2bE1603Dc817551Ff9A7b333Ed1D18f"
+    val BENTOBOX       = "0xf4F46382C2bE1603Dc817551Ff9A7b333Ed1D18f"
     val WMEMO_CAULDRON = "0x35fA7A723B3B39f15623Ff1Eb26D8701E7D6bB21"
   }
 
   val avaxWeb3 = Web3j.build(new HttpService(AVALANCHE_C_CHAIN))
-  val ethWeb3 = Web3j.build(new HttpService(ETHEREUM_CHAIN))
+  val ethWeb3  = Web3j.build(new HttpService(ETHEREUM_CHAIN))
 
-  val bunkAddress = "0x" + (0 until 40).map(_ => 0).mkString
-  val transactionManager = new ClientTransactionManager(avaxWeb3, bunkAddress)
-  val gasProvider = new DefaultGasProvider()
-  val wMemoContract = WMEMO.load(Contracts.WMEMO, avaxWeb3, transactionManager, gasProvider)
-  val memoContract = MEMO.load(Contracts.MEMO, avaxWeb3, transactionManager, gasProvider)
-  val bentoboxContract = BentoboxV1.load(Contracts.BENTOBOX, avaxWeb3, transactionManager, gasProvider)
+  val bunkAddress           = "0x" + (0 until 40).map(_ => 0).mkString
+  val transactionManager    = new ClientTransactionManager(avaxWeb3, bunkAddress)
+  val gasProvider           = new DefaultGasProvider()
+  val wMemoContract         = WMEMO.load(Contracts.WMEMO, avaxWeb3, transactionManager, gasProvider)
+  val memoContract          = MEMO.load(Contracts.MEMO, avaxWeb3, transactionManager, gasProvider)
+  val bentoboxContract      = BentoboxV1.load(Contracts.BENTOBOX, avaxWeb3, transactionManager, gasProvider)
   val wMemoCauldronContract = CauldronWMEMO.load(Contracts.WMEMO_CAULDRON, avaxWeb3, transactionManager, gasProvider)
 
   val defaultBlockParameter = DefaultBlockParameter.valueOf("latest")
@@ -53,17 +53,17 @@ object JsonRPC {
    * Accounts for wrapped and non-wrapped wallet balance + wMEMO deposited into Abracadabra.money
    *
    * @param walletAddress
-   * wallet with TIME Balance.
+   *   wallet with TIME Balance.
    * @return
-   * Human-readable format of TIME Balance.
+   *   Human-readable format of TIME Balance.
    */
   def getWalletTimeBalance(walletAddress: String): Task[BigDecimal] = {
-    val oneAsWei = Convert.toWei("1", Convert.Unit.ETHER)
+    val oneAsWei       = Convert.toWei("1", Convert.Unit.ETHER)
     val nonWrappedTask = Task.from(memoContract.balanceOf(walletAddress).sendAsync())
-    val wrappedTask = Task.from(wMemoContract.balanceOf(walletAddress).sendAsync())
+    val wrappedTask    = Task.from(wMemoContract.balanceOf(walletAddress).sendAsync())
     val conversionTask = Task.from(wMemoContract.wMEMOToMEMO(oneAsWei.toBigInteger).sendAsync())
-    val cauldronTask = Task.from(wMemoCauldronContract.userCollateralShare(walletAddress).sendAsync())
-    val bentoboxTask = Task.from(bentoboxContract.balanceOf(Contracts.WMEMO, walletAddress).sendAsync())
+    val cauldronTask   = Task.from(wMemoCauldronContract.userCollateralShare(walletAddress).sendAsync())
+    val bentoboxTask   = Task.from(bentoboxContract.balanceOf(Contracts.WMEMO, walletAddress).sendAsync())
 
     for {
       balances <- Task.parZip5(nonWrappedTask, wrappedTask, conversionTask, cauldronTask, bentoboxTask)
@@ -72,7 +72,7 @@ object JsonRPC {
 
       bentoWrappedAmount <- Task.from(bentoboxContract.toAmount(Contracts.WMEMO, cauldron.add(bento), false).sendAsync())
     } yield {
-      val allWrapped = bentoWrappedAmount.add(wrapped)
+      val allWrapped  = bentoWrappedAmount.add(wrapped)
       val allWrapped2 = Convert.fromWei(allWrapped.toString, Convert.Unit.ETHER)
       val conversion2 = Convert.fromWei(conversion.toString, Convert.Unit.GWEI)
       val nonWrapped2 = Convert.fromWei(nonWrapped.toString, Convert.Unit.GWEI)
@@ -104,7 +104,7 @@ object JsonRPC {
       "balanceOf",
       java.util.Arrays.asList(new Address(walletAddress)),
       java.util.Arrays.asList(new TypeReference[Uint256]() {})
-    );
+    )
     val encoded     = FunctionEncoder.encode(function)
     val transaction = Transaction.createEthCallTransaction(walletAddress, contractAddress, encoded)
     val response    = avaxWeb3.ethCall(transaction, defaultBlockParameter).send().getValue()
@@ -117,11 +117,11 @@ object JsonRPC {
       "wMEMOToMEMO",
       java.util.Arrays.asList(new Uint256(balance.toBigInteger)),
       java.util.Arrays.asList(new TypeReference[Uint256]() {})
-    );
-    val encoded = FunctionEncoder.encode(function)
+    )
+    val encoded     = FunctionEncoder.encode(function)
     val transaction = Transaction.createEthCallTransaction(walletAddress, Contracts.WMEMO, encoded)
-    val response = avaxWeb3.ethCall(transaction, defaultBlockParameter).send().getValue()
-    val asWei = FunctionReturnDecoder.decode(response, function.getOutputParameters).get(0).getValue
+    val response    = avaxWeb3.ethCall(transaction, defaultBlockParameter).send().getValue()
+    val asWei       = FunctionReturnDecoder.decode(response, function.getOutputParameters).get(0).getValue
     Convert.toWei(asWei.toString, Convert.Unit.WEI) // Wei -> Wei for type safety.
   }
 }

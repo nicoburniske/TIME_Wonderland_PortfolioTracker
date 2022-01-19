@@ -10,10 +10,10 @@ case class WhaleTrackerBot(override val token: String) extends TelegramNotificat
 
   def sendMessage(msg: String): Task[Unit] = {
     for {
-      chats <- getChats
-      _ <- Task.now(logger.trace(s"Sending message to ${chats.size} chats"))
+      chats   <- getChats
+      _       <- Task.now(logger.trace(s"Sending message to ${chats.size} chats"))
       messages = chats.map(SendMessage(_, msg, disableNotification = Some(true)))
-      _ <- Task.parTraverse(messages)(request(_))
+      _       <- Task.parTraverse(messages)(request(_))
     } yield ()
   }
 
@@ -27,7 +27,7 @@ case class WhaleTrackerBot(override val token: String) extends TelegramNotificat
         for {
           _ <- request(SendMessage(msg.source, s"dm me this chat id -> ${msg.source} so I can add you manually"))
         } yield logger.info(s"User added from chat ${msg.source.toString}")
-      case _ =>
+      case _        =>
         Task.now(logger.info(s"Non-recognized command ${msg.text} from ${msg.source}"))
     }
 }

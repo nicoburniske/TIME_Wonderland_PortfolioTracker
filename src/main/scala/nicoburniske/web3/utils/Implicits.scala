@@ -14,12 +14,12 @@ object Implicits {
         .left
         .map(ex => DecodingError(s"Can't build a BigInt from input $value", Some(ex)))
         .flatMap {
-          case None => Left(DecodingError(s"Can't build a BigInt from input $value"))
+          case None    => Left(DecodingError(s"Can't build a BigInt from input $value"))
           case Some(v) => Right(v)
         }
     case __StringValue(value) => // added this case here to handle strings
       Try(BigInt(value)).toEither.left.map(ex => DecodingError(s"Can't build a BigInt from input $value", Some(ex)))
-    case other => Left(DecodingError(s"Can't build a BigInt from input $other"))
+    case other                => Left(DecodingError(s"Can't build a BigInt from input $other"))
   }
 
   implicit val bigDecimalDecoder: ScalarDecoder[BigDecimal] = {

@@ -24,7 +24,7 @@ object SwapDetails {
       Swap.amount1Out
 
   val DETAILS_MAPPED = SELECTION_BUILDER.mapN(SwapDetails.apply _)
-  val FORMATTER = java.text.NumberFormat.getCurrencyInstance
+  val FORMATTER      = java.text.NumberFormat.getCurrencyInstance
 
   def round(d: BigDecimal, scale: Int = 2): BigDecimal = {
     d.setScale(scale, RoundingMode.HALF_UP)
@@ -32,18 +32,18 @@ object SwapDetails {
 }
 
 case class SwapDetails(
-                        pair: String,
-                        price0: BigDecimal,
-                        price1: BigDecimal,
-                        fullName0: String,
-                        fullName1: String,
-                        id: String,
-                        timestamp: BigInt,
-                        amountUSD: BigDecimal,
-                        token0Sold: BigDecimal,
-                        token0Received: BigDecimal,
-                        token1Sold: BigDecimal,
-                        token1Received: BigDecimal) {
+    pair: String,
+    price0: BigDecimal,
+    price1: BigDecimal,
+    fullName0: String,
+    fullName1: String,
+    id: String,
+    timestamp: BigInt,
+    amountUSD: BigDecimal,
+    token0Sold: BigDecimal,
+    token0Received: BigDecimal,
+    token1Sold: BigDecimal,
+    token1Received: BigDecimal) {
 
   import SwapDetails.{FORMATTER, round}
 
@@ -57,16 +57,16 @@ case class SwapDetails(
   }
 
   // TODO: review. not true always
-  val realPrice = if (price0 > price1) price0 else price1
+  val realPrice     = if (price0 > price1) price0 else price1
   // TODO: why is there a dash? Deserialization perhaps?
   val snowtraceLink = s"https://snowtrace.io/tx/${id.split("-").head}"
 
   val timeFormatted = {
-    val instant = Instant.ofEpochMilli(timestamp.toLong.seconds.toMillis)
+    val instant  = Instant.ofEpochMilli(timestamp.toLong.seconds.toMillis)
     val dateTime = ZonedDateTime.ofInstant(instant, ZoneId.of("UTC"))
     DateTimeFormatter.ISO_ZONED_DATE_TIME.format(dateTime)
   }
-  val swapDetails = {
+  val swapDetails   = {
     if (token0Sold.compare(0) == 0) {
       s"${round(token1Sold)} $token1 swapped for ${round(token0Received)} $token0"
     } else {

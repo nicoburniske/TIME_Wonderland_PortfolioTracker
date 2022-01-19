@@ -21,27 +21,27 @@ object WhaleTracker extends BetterLogger {
    * NOTE: Tasks do not terminate, but they can be cancelled.
    *
    * @param token
-   * auth token for Telegram Bot
+   *   auth token for Telegram Bot
    * @return
-   * Task
+   *   Task
    */
   def schedule(token: String): Task[Unit] = {
     val bot = WhaleTrackerBot(token)
     for {
-      _ <- logTask("Scheduling whale tracker")
+      _         <- logTask("Scheduling whale tracker")
       observable = Observable.intervalAtFixedRate(0.seconds, INTERVAL)
-      _ <- Task.parZip2(bot.run(), observable.foreachL(_ => whaleTracker(INTERVAL, bot).runAsyncAndForget))
+      _         <- Task.parZip2(bot.run(), observable.foreachL(_ => whaleTracker(INTERVAL, bot).runAsyncAndForget))
     } yield ()
   }
 
   def whaleTracker(interval: FiniteDuration, bot: WhaleTrackerBot): Task[Unit] = {
     for {
-      _ <- logTask("hunting for whales")
-      swaps <- findSwaps(interval)
+      _         <- logTask("hunting for whales")
+      swaps     <- findSwaps(interval)
       logMessage = if (swaps.isEmpty) "no whales found" else s"Found ${swaps.size} whale swap(s)"
-      _ <- logTask(logMessage)
-      messages = swaps.map(_.message)
-      _ <- Task.parTraverse(messages)(m => bot.sendMessage(m))
+      _         <- logTask(logMessage)
+      messages   = swaps.map(_.message)
+      _         <- Task.parTraverse(messages)(m => bot.sendMessage(m))
     } yield ()
   }
 
@@ -50,18 +50,18 @@ object WhaleTracker extends BetterLogger {
    */
   def findSwaps(interval: FiniteDuration): Task[Seq[SwapDetails]] = {
     for {
-      since <- Task.eval(Instant.now.minusMillis(interval.toMillis))
-      queryTj = DEX.timeMimSwapsRequest(since, MIN_SWAP)
+      since     <- Task.eval(Instant.now.minusMillis(interval.toMillis))
+      queryTj    = DEX.timeMimSwapsRequest(since, MIN_SWAP)
       querySushi = DEX.wMemoSwapsRequest(since, MIN_SWAP)
       responses <- Task.parZip2(queryTj.send(backend), querySushi.send(backend))
 
       (timeReq, wmemoReq) = responses
 
       res <- (timeReq.body, wmemoReq.body) match {
-        case (Right(timeSwaps), Right(wmemoSwaps)) => Task.now(timeSwaps ++ wmemoSwaps)
-        case (Left(error), _) => Task.raiseError(error)
-        case (_, Left(error)) => Task.raiseError(error)
-      }
+               case (Right(timeSwaps), Right(wmemoSwaps)) => Task.now(timeSwaps ++ wmemoSwaps)
+               case (Left(error), _)                      => Task.raiseError(error)
+               case (_, Left(error))                      => Task.raiseError(error)
+             }
     } yield res
   }
 }
