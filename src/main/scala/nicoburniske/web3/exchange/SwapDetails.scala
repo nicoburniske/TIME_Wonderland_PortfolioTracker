@@ -24,7 +24,7 @@ object SwapDetails {
       Swap.amount1Out
 
   val DETAILS_MAPPED = SELECTION_BUILDER.mapN(SwapDetails.apply _)
-  val formatter = java.text.NumberFormat.getCurrencyInstance
+  val FORMATTER = java.text.NumberFormat.getCurrencyInstance
 
   def round(d: BigDecimal, scale: Int = 2): BigDecimal = {
     d.setScale(scale, RoundingMode.HALF_UP)
@@ -45,7 +45,7 @@ case class SwapDetails(
                         token1Sold: BigDecimal,
                         token1Received: BigDecimal) {
 
-  import SwapDetails.{round, formatter}
+  import SwapDetails.{FORMATTER, round}
 
   val (token0, token1) = {
     val split = pair.split("-")
@@ -53,13 +53,14 @@ case class SwapDetails(
   }
 
   def roundAndFormat(d: BigDecimal): String = {
-    formatter.format(round(d).toDouble)
+    FORMATTER.format(round(d).toDouble)
   }
 
   // TODO: review. not true always
   val realPrice = if (price0 > price1) price0 else price1
   // TODO: why is there a dash? Deserialization perhaps?
   val snowtraceLink = s"https://snowtrace.io/tx/${id.split("-").head}"
+
   val timeFormatted = {
     val instant = Instant.ofEpochMilli(timestamp.toLong.seconds.toMillis)
     val dateTime = ZonedDateTime.ofInstant(instant, ZoneId.of("UTC"))

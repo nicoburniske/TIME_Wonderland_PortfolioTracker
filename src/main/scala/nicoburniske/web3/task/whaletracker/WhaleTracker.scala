@@ -2,7 +2,6 @@ package nicoburniske.web3.task.whaletracker
 
 import java.time.Instant
 
-import caliban.client.CalibanClientError
 import monix.eval.Task
 import monix.reactive.Observable
 import nicoburniske.web3.Resources.{backend, scheduler}
@@ -15,6 +14,17 @@ object WhaleTracker extends BetterLogger {
   val MIN_SWAP = BigInt(300000)
   val INTERVAL = 1.minutes
 
+  /**
+   * Schedules WhaleTracker Bot to receive incoming messages + searches for Whale transactions every minute, sending alert via
+   * Telegram for each transaction found.
+   *
+   * NOTE: Tasks do not terminate, but they can be cancelled.
+   *
+   * @param token
+   * auth token for Telegram Bot
+   * @return
+   * Task
+   */
   def schedule(token: String): Task[Unit] = {
     val bot = WhaleTrackerBot(token)
     for {
@@ -27,34 +37,31 @@ object WhaleTracker extends BetterLogger {
   def whaleTracker(interval: FiniteDuration, bot: WhaleTrackerBot): Task[Unit] = {
     for {
       _ <- logTask("hunting for whales")
-      since = Instant.now.minusMillis(interval.toMillis)
-      queryTj = DEX.timeMimSwapsRequest(since, MIN_SWAP)
-      querySushi = DEX.wMemoSwapsRequest(since, MIN_SWAP)
-      responses <- Task.parZip2(queryTj.send(backend), querySushi.send(backend))
-      (timeReq, wmemoReq) = responses
-      (timeSwaps, wmemoSwaps) = (timeReq.body, wmemoReq.body)
-      _ <- processWhaleSwaps(bot, timeSwaps, wmemoSwaps)
+      swaps <- findSwaps(interval)
+      logMessage = if (swaps.isEmpty) "no whales found" else s"Found ${swaps.size} whale swap(s)"
+      _ <- logTask(logMessage)
+      messages = swaps.map(_.message)
+      _ <- Task.parTraverse(messages)(m => bot.sendMessage(m))
     } yield ()
   }
 
-  def processWhaleSwaps(
-                         bot: WhaleTrackerBot,
-                         maybeTimeSwaps: Either[CalibanClientError, Seq[SwapDetails]],
-                         maybeWmemoSwaps: Either[CalibanClientError, Seq[SwapDetails]]): Task[Unit] = {
-    (maybeTimeSwaps, maybeWmemoSwaps) match {
-      case (Right(timeSwaps), Right(wmemoSwaps)) =>
-        val swaps = timeSwaps ++ wmemoSwaps
-        if (swaps.isEmpty) {
-          logTask("no whales found")
-        } else {
-          val messages = swaps.map(_.message)
-          for {
-            _ <- logTask(s"Found ${swaps.size} whale swap(s)")
-            _ <- Task.parTraverse(messages)(m => bot.sendMessage(m)).void
-          } yield ()
-        }
-      case (t, w) =>
-        Task.now(logFailures("Failed to retrieve swap information")(t, w))
-    }
+  /**
+   * Finds all swaps over MIN_SWAP that occurred between [Now - interval, Now] for TIME-MIM wMEMO-MIM.
+   */
+  def findSwaps(interval: FiniteDuration): Task[Seq[SwapDetails]] = {
+    for {
+      since <- Task.eval(Instant.now.minusMillis(interval.toMillis))
+      queryTj = DEX.timeMimSwapsRequest(since, MIN_SWAP)
+      querySushi = DEX.wMemoSwapsRequest(since, MIN_SWAP)
+      responses <- Task.parZip2(queryTj.send(backend), querySushi.send(backend))
+
+      (timeReq, wmemoReq) = responses
+
+      res <- (timeReq.body, wmemoReq.body) match {
+        case (Right(timeSwaps), Right(wmemoSwaps)) => Task.now(timeSwaps ++ wmemoSwaps)
+        case (Left(error), _) => Task.raiseError(error)
+        case (_, Left(error)) => Task.raiseError(error)
+      }
+    } yield res
   }
 }

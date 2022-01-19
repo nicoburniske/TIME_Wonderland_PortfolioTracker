@@ -8,11 +8,16 @@ trait BetterLogger {
   protected val logger: Logger = Logger(LoggerFactory.getLogger(getClass.getSimpleName.dropRight(1)))
 
   def logFailures[L, R](log: String)(maybeErrors: Either[L, R]*): Unit = {
-    val s = maybeErrors.map(_.toString).mkString(", ")
-    logger.error(s"$log : $s")
+    val errorsMapped: String = errorMessage(log)(maybeErrors: _*)
+    logger.error(s"$log : $errorsMapped")
+  }
+
+  def errorMessage[L, R](log: String)(maybeErrors: Either[L, R]*): String = {
+    val errorsMapped = maybeErrors.partitionMap(identity)._1.map(_.toString).mkString(", ")
+    s"$log : $errorsMapped"
   }
 
   def logTask(log: String): Task[Unit] = {
-    Task.now(logger.info(log))
+    Task.eval(logger.info(log))
   }
 }

@@ -1,4 +1,4 @@
-package nicoburniske.web3.task
+package nicoburniske.web3.task.orderbook
 
 import java.time.Instant
 
@@ -9,13 +9,6 @@ import nicoburniske.web3.exchange.{DEX, SwapDetails}
 import scala.concurrent.duration.{FiniteDuration, _}
 
 object OrderbookVolume {
-
-  def calculateVolume(swaps: Seq[SwapDetails]): (BigDecimal, BigDecimal) = {
-    val grouped = swaps.groupBy(_.token0Received > 0)
-    val buys = grouped(true).map(_.amountUSD).sum
-    val sells = grouped(false).map(_.amountUSD).sum
-    (sells, buys)
-  }
 
   def findVolumeWMEMO(duration: FiniteDuration): Task[(BigDecimal, BigDecimal)] = {
     for {
@@ -28,10 +21,22 @@ object OrderbookVolume {
     } yield result
   }
 
+  /**
+   * Calculates Sell and Buy volume for the given swaps.
+   *
+   * @param swaps
+   * the swaps
+   * @return
+   * (Sells, Buys)
+   */
+  def calculateVolume(swaps: Seq[SwapDetails]): (BigDecimal, BigDecimal) = {
+    val grouped = swaps.groupMapReduce(_.token0Received > 0)(_.amountUSD)(_ + _)
+    (grouped(false), grouped(true))
+  }
+
   def main(args: Array[String]): Unit = {
-    findVolumeWMEMO(30.minutes)
-      .map { case (sells, buys) => (SwapDetails.round(sells), SwapDetails.round(buys)) }
-      .foreach { case (sells, buys) => println(s"Sells $sells, Buys $buys")
-      }
+    findVolumeWMEMO(1.hour).map { case (sells, buys) => (SwapDetails.round(sells), SwapDetails.round(buys)) }.foreach {
+      case (sells, buys) => println(s"Sells $sells, Buys $buys")
+    }
   }
 }

@@ -34,22 +34,29 @@ object TimeRebaseLogger extends BetterLogger {
 
   def loggingTask(walletAddress: String, csvPath: String): Task[Unit] = {
     for {
-      responses <- Task.parZip4(
-        CEX.getPrices().send(backend),
-        DEX.priceWMEMO().send(backend),
-        DEX.priceTIME().send(backend),
-        JsonRPC.getWalletTimeBalance(walletAddress))
+      _ <- logTask("Log process starting")
+      responses <- Task.parZip2(getPrices, JsonRPC.getWalletTimeBalance(walletAddress))
+      (prices, balance) = responses
+      _ <- Task.eval(CsvLogger.addLog(csvPath, balance, prices))
+      _ <- logTask("Log successfully written")
+    } yield ()
+  }
 
-      (prices, wMemo, time, balance) = responses
-    } yield (prices.body, wMemo.body, time.body, balance) match {
-      case (Right(prices), Right(Some((wmemoPool, priceWMemo))), Right(Some((timePool, priceTime))), Right(timeBalance)) =>
-        logger.info("Log process starting")
-        val newPrices = prices :+ (wmemoPool -> priceWMemo.toDouble) :+ (timePool -> priceTime.toDouble)
-        CsvLogger.addLog(csvPath, timeBalance, newPrices)
-        logger.info(s"Log successfully written to $csvPath")
-      case (p, w, t, b)                                                                                                  =>
-        logFailures("Failed to retrieve row data")(p, w, t, b)
-    }
+  def getPrices: Task[Seq[(String, Double)]] = {
+    for {
+      responses <- Task.parZip3(CEX.getPrices().send(backend), DEX.priceWMEMO().send(backend), DEX.priceTIME().send(backend))
+
+      (prices, wMemo, time) = responses
+
+      res <- (prices.body, wMemo.body, time.body) match {
+        case (Right(prices), Right(Some((wmemoPool, priceWMemo))), Right(Some((timePool, priceTime)))) =>
+          Task.now(prices :+ (wmemoPool -> priceWMemo.toDouble) :+ (timePool -> priceTime.toDouble))
+
+        case (p, w, t) =>
+          val msg = errorMessage("Failed to retrieve prices")(p, w, t)
+          Task.raiseError(new IllegalStateException(msg))
+      }
+    } yield res
   }
 
   val UTC          = ZoneId.of("UTC")

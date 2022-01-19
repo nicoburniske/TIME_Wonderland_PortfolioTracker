@@ -57,7 +57,7 @@ object JsonRPC {
    * @return
    * Human-readable format of TIME Balance.
    */
-  def getWalletTimeBalance(walletAddress: String): Task[Either[String, BigDecimal]] = {
+  def getWalletTimeBalance(walletAddress: String): Task[BigDecimal] = {
     val oneAsWei = Convert.toWei("1", Convert.Unit.ETHER)
     val nonWrappedTask = Task.from(memoContract.balanceOf(walletAddress).sendAsync())
     val wrappedTask = Task.from(wMemoContract.balanceOf(walletAddress).sendAsync())
@@ -78,7 +78,7 @@ object JsonRPC {
       val nonWrapped2 = Convert.fromWei(nonWrapped.toString, Convert.Unit.GWEI)
 
       val total = allWrapped2.multiply(conversion2).add(nonWrapped2)
-      Right(total)
+      total
     }
   }
 
@@ -121,7 +121,7 @@ object JsonRPC {
     val encoded = FunctionEncoder.encode(function)
     val transaction = Transaction.createEthCallTransaction(walletAddress, Contracts.WMEMO, encoded)
     val response = avaxWeb3.ethCall(transaction, defaultBlockParameter).send().getValue()
-    val asWei       = FunctionReturnDecoder.decode(response, function.getOutputParameters).get(0).getValue
+    val asWei = FunctionReturnDecoder.decode(response, function.getOutputParameters).get(0).getValue
     Convert.toWei(asWei.toString, Convert.Unit.WEI) // Wei -> Wei for type safety.
   }
 }

@@ -12,7 +12,8 @@ case class WhaleTrackerBot(override val token: String) extends TelegramNotificat
     for {
       chats <- getChats
       _ <- Task.now(logger.trace(s"Sending message to ${chats.size} chats"))
-      _ <- Task.parTraverse(chats)(c => request(SendMessage(c, msg, disableWebPagePreview = Some(true)))).void
+      messages = chats.map(SendMessage(_, msg, disableNotification = Some(true)))
+      _ <- Task.parTraverse(messages)(request(_))
     } yield ()
   }
 
