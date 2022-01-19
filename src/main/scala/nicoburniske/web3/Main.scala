@@ -36,9 +36,10 @@ object Main extends BetterLogger {
   }
 
   def composed(input: CommandLineConf, whaleApiKey: Option[String]): Task[Unit] = {
-    for {
-      _ <- TimeRebaseLogger.schedule(input.walletAddress(), input.csvPath(), input.runAtStart())
-      _ <- whaleApiKey.fold(Task.unit)(k => WhaleTracker.schedule(k))
-    } yield ()
+    Task
+      .parZip2(
+        TimeRebaseLogger.schedule(input.walletAddress(), input.csvPath(), input.runAtStart()),
+        whaleApiKey.fold(Task.unit)(k => WhaleTracker.schedule(k)))
+      .void
   }
 }

@@ -4,50 +4,37 @@ import java.time.Instant
 
 import caliban.client.CalibanClientError
 import monix.eval.Task
+import monix.reactive.Observable
 import nicoburniske.web3.Resources.{backend, scheduler}
-import nicoburniske.web3.exchange.DEX.{Endpoints, PairAddress, Queries}
+import nicoburniske.web3.exchange.{DEX, SwapDetails}
 import nicoburniske.web3.utils.BetterLogger
-import sttp.client3.Request
 
 import scala.concurrent.duration.{FiniteDuration, _}
 
 object WhaleTracker extends BetterLogger {
-  val MIN_SWAP = BigInt(100000)
+  val MIN_SWAP = BigInt(300000)
   val INTERVAL = 1.minutes
 
   def schedule(token: String): Task[Unit] = {
-    Task.eval {
-      val bot = WhaleTrackerBot(token)
-      bot.run().runAsyncAndForget
-      logger.info("Scheduling whale tracker")
-      scheduler.scheduleAtFixedRate(0.seconds, INTERVAL)(whaleTracker(INTERVAL, bot).runAsyncAndForget)
-      logger.info("Successfully scheduled whale tracker")
-    }
+    val bot = WhaleTrackerBot(token)
+    for {
+      _ <- logTask("Scheduling whale tracker")
+      observable = Observable.intervalAtFixedRate(0.seconds, INTERVAL)
+      _ <- Task.parZip2(bot.run(), observable.foreachL(_ => whaleTracker(INTERVAL, bot).runAsyncAndForget))
+    } yield ()
   }
 
   def whaleTracker(interval: FiniteDuration, bot: WhaleTrackerBot): Task[Unit] = {
     for {
-      _ <- Task.now(logger.info("hunting for whales"))
+      _ <- logTask("hunting for whales")
       since = Instant.now.minusMillis(interval.toMillis)
-      queryTj = timeMimSwapsRequest(since)
-      querySushi = wMemoSwapsRequest(since)
+      queryTj = DEX.timeMimSwapsRequest(since, MIN_SWAP)
+      querySushi = DEX.wMemoSwapsRequest(since, MIN_SWAP)
       responses <- Task.parZip2(queryTj.send(backend), querySushi.send(backend))
       (timeReq, wmemoReq) = responses
       (timeSwaps, wmemoSwaps) = (timeReq.body, wmemoReq.body)
       _ <- processWhaleSwaps(bot, timeSwaps, wmemoSwaps)
     } yield ()
-  }
-
-  private def timeMimSwapsRequest(since: Instant): Request[Either[CalibanClientError, Seq[SwapDetails]], Any] = {
-    Queries
-      .pairSwapsSinceInstant(PairAddress.TJ_TIME_MIM, since, MIN_SWAP)(SwapDetails.DETAILS_MAPPED)
-      .toRequest(Endpoints.TRADER_JOE)
-  }
-
-  private def wMemoSwapsRequest(since: Instant): Request[Either[CalibanClientError, Seq[SwapDetails]], Any] = {
-    Queries
-      .pairSwapsSinceInstant(PairAddress.SUSHI_WMEMO_MIM, since, MIN_SWAP)(SwapDetails.DETAILS_MAPPED)
-      .toRequest(Endpoints.SUSHISWAP)
   }
 
   def processWhaleSwaps(
@@ -58,11 +45,11 @@ object WhaleTracker extends BetterLogger {
       case (Right(timeSwaps), Right(wmemoSwaps)) =>
         val swaps = timeSwaps ++ wmemoSwaps
         if (swaps.isEmpty) {
-          Task.now(logger.info("no whales found"))
+          logTask("no whales found")
         } else {
           val messages = swaps.map(_.message)
           for {
-            _ <- Task.now(logger.info(s"Found ${swaps.size} whale swap(s)"))
+            _ <- logTask(s"Found ${swaps.size} whale swap(s)")
             _ <- Task.parTraverse(messages)(m => bot.sendMessage(m)).void
           } yield ()
         }

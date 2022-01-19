@@ -1,4 +1,4 @@
-package nicoburniske.web3.task.whaletracker
+package nicoburniske.web3.exchange
 
 import java.time.format.DateTimeFormatter
 import java.time.{Instant, ZoneId, ZonedDateTime}
@@ -24,6 +24,11 @@ object SwapDetails {
       Swap.amount1Out
 
   val DETAILS_MAPPED = SELECTION_BUILDER.mapN(SwapDetails.apply _)
+  val formatter = java.text.NumberFormat.getCurrencyInstance
+
+  def round(d: BigDecimal, scale: Int = 2): BigDecimal = {
+    d.setScale(scale, RoundingMode.HALF_UP)
+  }
 }
 
 case class SwapDetails(
@@ -40,14 +45,11 @@ case class SwapDetails(
                         token1Sold: BigDecimal,
                         token1Received: BigDecimal) {
 
-  val formatter = java.text.NumberFormat.getCurrencyInstance
+  import SwapDetails.{round, formatter}
+
   val (token0, token1) = {
     val split = pair.split("-")
     (split(0), split(1))
-  }
-
-  def round(d: BigDecimal, scale: Int = 2): BigDecimal = {
-    d.setScale(scale, RoundingMode.HALF_UP)
   }
 
   def roundAndFormat(d: BigDecimal): String = {

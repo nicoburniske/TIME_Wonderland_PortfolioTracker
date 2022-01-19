@@ -3,6 +3,7 @@ package nicoburniske.web3.task
 import java.time.{Instant, LocalDateTime, LocalTime, ZoneId}
 
 import monix.eval.Task
+import monix.reactive.Observable
 import nicoburniske.web3.Resources.{backend, scheduler}
 import nicoburniske.web3.csv.CsvLogger
 import nicoburniske.web3.eth.JsonRPC
@@ -13,23 +14,21 @@ import scala.concurrent.duration.{FiniteDuration, _}
 
 object TimeRebaseLogger extends BetterLogger {
   def schedule(walletAddress: String, csvPath: String, runAtStart: Boolean): Task[Unit] = {
-    for {
-      _ <- scheduleRebaseLogEvent(walletAddress, csvPath)
-    } yield {
+    val baseTask =
       if (runAtStart)
-        loggingTask(walletAddress, csvPath).runAsyncAndForget
+        loggingTask(walletAddress, csvPath)
       else
-        ()
-    }
+        Task.unit
+    for {
+      _ <- logTask("Scheduling rebase logger")
+      _ <- baseTask
+      _ <- scheduleRebaseLogEvent(walletAddress, csvPath)
+    } yield ()
   }
 
   def scheduleRebaseLogEvent(walletAddress: String, csvPath: String): Task[Unit] = {
-    Task.eval {
-      val rebaseTime = findTimeUntilNextRebase()
-      val hours = BigDecimal(rebaseTime.toMinutes / 60.0).setScale(2, BigDecimal.RoundingMode.HALF_UP)
-      logger.info(s"Scheduling rebase logger. $hours hours until next rebase log")
-      scheduler.scheduleAtFixedRate(rebaseTime, 8.hours)(loggingTask(walletAddress, csvPath).runAsyncAndForget)
-      logger.info("Successfully scheduled rebase logger")
+    Observable.intervalAtFixedRate(findTimeUntilNextRebase(), 8.hours).foreachL { _ =>
+      loggingTask(walletAddress, csvPath).runAsyncAndForget
     }
   }
 

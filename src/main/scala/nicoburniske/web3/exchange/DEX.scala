@@ -65,6 +65,18 @@ object DEX {
     query.toRequest(Endpoints.TRADER_JOE).mapResponseRight(round)
   }
 
+  def timeMimSwapsRequest(since: Instant, minSwap: BigInt): Request[Either[CalibanClientError, Seq[SwapDetails]], Any] = {
+    Queries
+      .pairSwapsSinceInstant(PairAddress.TJ_TIME_MIM, since, minSwap)(SwapDetails.DETAILS_MAPPED)
+      .toRequest(Endpoints.TRADER_JOE)
+  }
+
+  def wMemoSwapsRequest(since: Instant, minSwap: BigInt): Request[Either[CalibanClientError, Seq[SwapDetails]], Any] = {
+    Queries
+      .pairSwapsSinceInstant(PairAddress.SUSHI_WMEMO_MIM, since, minSwap)(SwapDetails.DETAILS_MAPPED)
+      .toRequest(Endpoints.SUSHISWAP)
+  }
+
   private def round(res: Option[(String, BigDecimal)]): Option[(String, BigDecimal)] = {
     res.map { case (label, price) => (label, price.setScale(3, RoundingMode.HALF_UP)) }
   }
