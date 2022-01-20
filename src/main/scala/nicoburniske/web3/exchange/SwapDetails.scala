@@ -59,7 +59,8 @@ case class SwapDetails(
   // TODO: review. not true always
   val realPrice     = if (price0 > price1) price0 else price1
   // TODO: why is there a dash? Deserialization perhaps?
-  val snowtraceLink = s"https://snowtrace.io/tx/${id.split("-").head}"
+  val realId = id.split("-").head
+  val snowtraceLink = s"https://snowtrace.io/tx/$realId"
 
   val timeFormatted = {
     val instant  = Instant.ofEpochMilli(timestamp.toLong.seconds.toMillis)

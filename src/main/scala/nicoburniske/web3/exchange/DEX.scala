@@ -40,13 +40,25 @@ object DEX {
     def pairSwaps[A](pairId: String)(innerSelection: SelectionBuilder[Swap, A]): SelectionBuilder[RootQuery, Seq[A]] =
       Field("pair", Obj(Pair.swaps(innerSelection)), arguments = List(Argument("id", pairId, "String!")))
 
-    def pairSwapsSinceInstant[A](pairId: String, instant: Instant, minTradeAmount: BigInt = BigInt(0))(
-        swapSelection: SelectionBuilder[Swap, A]): SelectionBuilder[RootQuery, Seq[A]] = {
-      val instantToSec  = BigInt(instant.toEpochMilli.millis.toSeconds)
-      val filterArg     = Argument("where", Seq("timestamp_gte" -> instantToSec, "amountUSD_gte" -> minTradeAmount), "")
-      val orderByArg    = Argument("orderBy", "timestamp", "")
-      val sortDirection = Argument("orderDirection", "desc", "")
-      val swapsField    = Field[Pair, List[A]](
+    def pairSwapsSinceInstant[A](
+        pairId: String,
+        instant: Instant,
+        minTradeAmount: BigInt = BigInt(0),
+        lastTimestamp: Option[BigInt] = None,
+        lastId: Option[String] = None)(swapSelection: SelectionBuilder[Swap, A]): SelectionBuilder[RootQuery, Seq[A]] = {
+      val instantToSec   = BigInt(instant.toEpochMilli.millis.toSeconds)
+      val maybeTimestamp = lastTimestamp.map(_.toString).map("timestamp_lte" -> _)
+      val maybeId        = lastId.map("id_not" -> _)
+      val conditions     = Seq(
+        Some("timestamp_gte" -> instantToSec.toString),
+        Some("amountUSD_gte" -> minTradeAmount.toString),
+        maybeTimestamp,
+        maybeId
+      ).flatten
+      val filterArg      = Argument("where", conditions, "")
+      val orderByArg     = Argument("orderBy", "timestamp", "")
+      val sortDirection  = Argument("orderDirection", "desc", "")
+      val swapsField     = Field[Pair, List[A]](
         "swaps",
         ListOf(Obj(swapSelection)),
         arguments = List(filterArg, orderByArg, sortDirection)
@@ -71,9 +83,13 @@ object DEX {
       .toRequest(Endpoints.TRADER_JOE)
   }
 
-  def wMemoSwapsRequest(since: Instant, minSwap: BigInt): Request[Either[CalibanClientError, Seq[SwapDetails]], Any] = {
+  def wMemoSwapsRequest(
+      since: Instant,
+      minSwap: BigInt,
+      lastTimestamp: Option[BigInt] = None,
+      lastId: Option[String] = None): Request[Either[CalibanClientError, Seq[SwapDetails]], Any] = {
     Queries
-      .pairSwapsSinceInstant(PairAddress.SUSHI_WMEMO_MIM, since, minSwap)(SwapDetails.DETAILS_MAPPED)
+      .pairSwapsSinceInstant(PairAddress.SUSHI_WMEMO_MIM, since, minSwap, lastTimestamp, lastId)(SwapDetails.DETAILS_MAPPED)
       .toRequest(Endpoints.SUSHISWAP)
   }
 

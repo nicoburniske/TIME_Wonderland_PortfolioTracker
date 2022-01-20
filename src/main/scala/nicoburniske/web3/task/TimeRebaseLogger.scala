@@ -20,7 +20,7 @@ object TimeRebaseLogger extends BetterLogger {
       else
         Task.unit
     for {
-      _ <- logTask("Scheduling rebase logger")
+      _ <- infoTask("Scheduling rebase logger")
       _ <- baseTask
       _ <- scheduleRebaseLogEvent(walletAddress, csvPath)
     } yield ()
@@ -34,11 +34,11 @@ object TimeRebaseLogger extends BetterLogger {
 
   def loggingTask(walletAddress: String, csvPath: String): Task[Unit] = {
     for {
-      _                <- logTask("Log process starting")
+      _                <- infoTask("Log process starting")
       responses        <- Task.parZip2(getPrices, JsonRPC.getWalletTimeBalance(walletAddress))
       (prices, balance) = responses
       _                <- Task.eval(CsvLogger.addLog(csvPath, balance, prices))
-      _                <- logTask("Log successfully written")
+      _                <- infoTask("Log successfully written")
     } yield ()
   }
 

@@ -17,7 +17,11 @@ trait BetterLogger {
     s"$log : $errorsMapped"
   }
 
-  def logTask(log: String): Task[Unit] = {
+  def infoTask(log: String): Task[Unit]  = {
     Task.eval(logger.info(log))
+  }
+
+  def debugTask(log: String): Task[Unit] = {
+    Task.eval(logger.debug(log))
   }
 }

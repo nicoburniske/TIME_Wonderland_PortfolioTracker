@@ -70,7 +70,8 @@ object JsonRPC {
 
       (nonWrapped, wrapped, conversion, cauldron, bento) = balances
 
-      bentoWrappedAmount <- Task.from(bentoboxContract.toAmount(Contracts.WMEMO, cauldron.add(bento), false).sendAsync())
+      bentoboxRequest     = bentoboxContract.toAmount(Contracts.WMEMO, cauldron.add(bento), false)
+      bentoWrappedAmount <- Task.from(bentoboxRequest.sendAsync())
     } yield {
       val allWrapped  = bentoWrappedAmount.add(wrapped)
       val allWrapped2 = Convert.fromWei(allWrapped.toString, Convert.Unit.ETHER)

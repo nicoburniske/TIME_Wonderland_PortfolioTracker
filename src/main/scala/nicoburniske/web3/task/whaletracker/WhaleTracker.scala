@@ -28,7 +28,7 @@ object WhaleTracker extends BetterLogger {
   def schedule(token: String): Task[Unit] = {
     val bot = WhaleTrackerBot(token)
     for {
-      _         <- logTask("Scheduling whale tracker")
+      _         <- infoTask("Scheduling whale tracker")
       observable = Observable.intervalAtFixedRate(0.seconds, INTERVAL)
       _         <- Task.parZip2(bot.run(), observable.foreachL(_ => whaleTracker(INTERVAL, bot).runAsyncAndForget))
     } yield ()
@@ -36,10 +36,10 @@ object WhaleTracker extends BetterLogger {
 
   def whaleTracker(interval: FiniteDuration, bot: WhaleTrackerBot): Task[Unit] = {
     for {
-      _         <- logTask("hunting for whales")
+      _         <- infoTask("hunting for whales")
       swaps     <- findSwaps(interval)
       logMessage = if (swaps.isEmpty) "no whales found" else s"Found ${swaps.size} whale swap(s)"
-      _         <- logTask(logMessage)
+      _         <- infoTask(logMessage)
       messages   = swaps.map(_.message)
       _         <- Task.parTraverse(messages)(m => bot.sendMessage(m))
     } yield ()
